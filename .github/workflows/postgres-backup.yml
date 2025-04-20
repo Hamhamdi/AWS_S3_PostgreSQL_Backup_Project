@@ -1,57 +1,40 @@
-name: PostgreSQL Backup to S3
+- name: Create backup and upload to S3
+  env:
+    DB_HOST: ${{ secrets.DB_HOST }}
+    DB_PORT: ${{ secrets.DB_PORT }}
+    DB_NAME: ${{ secrets.DB_NAME }}
+    DB_USER: ${{ secrets.DB_USER }}
+    DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+    S3_BUCKET: ${{ secrets.S3_BUCKET }}
+  run: |
+    set -e  # Stop on error
+    echo "Starting PostgreSQL backup..."
 
-on:
-  schedule:
-    # Run every 12 hours
-    - cron: '0 */12 * * *'
-  workflow_dispatch:  # Allows manual triggering
+    # Verify values are not empty
+    echo "DB_HOST=$DB_HOST"
+    echo "DB_PORT=$DB_PORT"
+    echo "DB_NAME=$DB_NAME"
+    echo "DB_USER=$DB_USER"
 
-jobs:
-  backup:
-    runs-on: ubuntu-latest
-    steps:
-           
-      - name: Set up AWS CLI
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      
-      - name: Install PostgreSQL client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
-      
-      - name: Create backup and upload to S3
-        env:
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          S3_BUCKET: ${{ secrets.S3_BUCKET }}
-        run: |
-          # Create backup directory
-          BACKUP_DIR="/tmp/db_backups"
-          mkdir -p $BACKUP_DIR
+    if [ -z "$DB_PASSWORD" ]; then
+      echo " DB_PASSWORD is empty!"
+      exit 1
+    fi
 
-          # Generate timestamp
-          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          BACKUP_FILE="$BACKUP_DIR/postgres_backup_$TIMESTAMP.sql"
-          COMPRESSED_BACKUP_FILE="$BACKUP_FILE.tar.gz"
+    BACKUP_DIR="/tmp/db_backups"
+    mkdir -p $BACKUP_DIR
 
-          echo "Starting PostgreSQL backup..."
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    BACKUP_FILE="$BACKUP_DIR/postgres_backup_$TIMESTAMP.sql"
+    COMPRESSED_BACKUP_FILE="$BACKUP_FILE.tar.gz"
 
-          # Create PostgreSQL dump
-          PGPASSWORD=$DB_PASSWORD pg_dump -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f $BACKUP_FILE
+    # Create PostgreSQL dump with password passed securely via env var
+    PGPASSWORD="$DB_PASSWORD" pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -F p -f "$BACKUP_FILE"
 
-          # Compress the backup file
-          tar -czf $COMPRESSED_BACKUP_FILE $BACKUP_FILE
-          echo "Backup compressed: $COMPRESSED_BACKUP_FILE"
+    tar -czf "$COMPRESSED_BACKUP_FILE" "$BACKUP_FILE"
+    echo "Backup compressed: $COMPRESSED_BACKUP_FILE"
 
-          # Upload to S3
-          echo "Uploading to S3..."
-          aws s3 cp $COMPRESSED_BACKUP_FILE s3://$S3_BUCKET/backups/postgres_backup_$TIMESTAMP.tar.gz
+    echo "Uploading to S3..."
+    aws s3 cp "$COMPRESSED_BACKUP_FILE" "s3://$S3_BUCKET/backups/postgres_backup_$TIMESTAMP.tar.gz"
 
-          echo "Backup uploaded to S3 successfully."
+    echo "Backup uploaded to S3 successfully."
