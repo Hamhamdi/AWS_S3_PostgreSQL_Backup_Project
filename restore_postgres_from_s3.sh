@@ -1,13 +1,14 @@
 #!/bin/bash
 
 # PostgreSQL database credentials
-DB_NAME="mydatabase"
-DB_USER="backupuser"
-DB_PASSWORD="1234"
-DB_HOST="54.82.27.95"
+DB_NAME="${DB_NAME}"
+DB_USER="${DB_USER}"
+DB_PASSWORD="${DB_PASSWORD}"
+DB_HOST="${DB_HOST}"
+
 
 # S3 bucket details
-S3_BUCKET="postgres-backup-hamza"
+S3_BUCKET="${S3_BUCKET}"
 S3_PATH="database_backups/postgresql"
 
 # Temporary directory for restoration
