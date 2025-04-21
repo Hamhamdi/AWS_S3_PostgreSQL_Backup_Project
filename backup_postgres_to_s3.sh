@@ -22,7 +22,7 @@ COMPRESSED_BACKUP_FILE="$BACKUP_FILE.tar.gz"
 echo "Starting PostgreSQL backup..."
 
 # Create PostgreSQL dump
-PGPASSWORD=$DB_PASSWORD pg_dump -h $DB_HOST -U $DB_USER -d $DB_NAME -f $BACKUP_FILE
+PGPASSWORD=$DB_PASSWORD pg_dump -h $DB_HOST -U $DB_USER -d $DB_NAME --no-privileges --no-owner -f $BACKUP_FILE
 
 # Check if backup was successful
 if [ $? -eq 0 ]; then
