@@ -2,7 +2,7 @@ name: PostgreSQL Backup to S3
 
 on:
   schedule:
-    - cron: '0 */12 * * *'  # Every 12 hours
+    - cron: '0 */2 * * *'  # Every 12 hours
   workflow_dispatch:        # Manual trigger support
 
 jobs:
